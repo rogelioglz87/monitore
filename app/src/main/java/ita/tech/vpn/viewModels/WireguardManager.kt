@@ -16,9 +16,7 @@ import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
 import com.wireguard.config.InetNetwork
 import com.wireguard.config.Interface
-import ita.tech.vpn.dataStore.StoreVPN
 import ita.tech.vpn.state.ServerInfo
-import ita.tech.vpn.state.VPNState
 import ita.tech.vpn.state.VPNStatus
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -39,9 +37,6 @@ class WireguardManager(
     private var tunnel: WireGuardTunnel? = null
     private val futureBackend = CompletableDeferred<Backend>()
     private val TAG = "WireguardManager"
-
-    // DataStore
-    val dataStore = StoreVPN(context)
 
     companion object {
         private var state: VPNStatus = VPNStatus.NO_CONNECTION
@@ -96,6 +91,9 @@ class WireguardManager(
             }
         }
         val inputStream = StringReader(configBuilder.toString()).buffered()
+        // return Config.parse(inputStream)
+
+        /* CODIGO PARA EXLUIR UNA APP */
         val config = Config.parse(inputStream)
         
         // Podemos agregar mas Apps para excluir
@@ -197,7 +195,6 @@ class WireguardManager(
             val updatedStage = stage ?: VPNStatus.NO_CONNECTION
             state = updatedStage
             // Store VPN status in SharedPreferences if required
-            dataStore.saveVPNStatus(state)
         }
     }
 

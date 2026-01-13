@@ -3,6 +3,9 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 
+    id("kotlin-parcelize")
+
+
     kotlin("plugin.serialization") version "2.1.10"
 
     //-- DAGGER HILT
