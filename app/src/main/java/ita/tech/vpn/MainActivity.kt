@@ -1,6 +1,7 @@
 package ita.tech.vpn
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -22,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
 import ita.tech.vpn.navegation.NavManager
+import ita.tech.vpn.services.VPNService
 import ita.tech.vpn.state.ServerInfo
 import ita.tech.vpn.ui.theme.VpnTheme
 import ita.tech.vpn.viewModels.VPNViewModel
@@ -36,6 +38,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+
+            // Iniciamos el Servicio
+            val intent = Intent(this, VPNService::class.java).apply {
+                action = ""
+            }
+            this.startForegroundService(intent)
 
             // Handling VPN Permission Request
             val vpnPermissionLauncher = rememberLauncherForActivityResult(

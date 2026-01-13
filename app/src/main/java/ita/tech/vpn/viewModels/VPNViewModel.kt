@@ -1,6 +1,7 @@
 package ita.tech.vpn.viewModels
 
 import android.app.Application
+import android.content.Context
 import android.content.Intent
 import android.provider.Settings.Secure
 import android.util.Log
@@ -14,88 +15,42 @@ import com.wireguard.crypto.KeyPair
 import dagger.hilt.android.lifecycle.HiltViewModel
 import ita.tech.vpn.dataStore.StoreVPN
 import ita.tech.vpn.model.InformacionMonitoreoModel
+import ita.tech.vpn.repository.VPNReceptor
 import ita.tech.vpn.repository.VPNRepository
+import ita.tech.vpn.services.VPNService
 import ita.tech.vpn.state.ServerInfo
 import ita.tech.vpn.state.VPNState
-import ita.tech.vpn.state.VPNStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class VPNViewModel @Inject constructor (
     application: Application,
-    private val repository: VPNRepository
+    private val repository: VPNRepository,
+    private val dataStore: StoreVPN
 ): AndroidViewModel(application) {
 
     private val context = getApplication<Application>().applicationContext
 
-    private var wireguardManager: WireguardManager? = null
-
     // VPN connection status as a StateFlow
-    private val _vpnState = MutableStateFlow(VPNStatus.NO_CONNECTION)
-    val vpnState: StateFlow<VPNStatus> = _vpnState.asStateFlow()
+    val vpnState = VPNReceptor.vpnState
 
     // Whether VPN is currently active
-    private val _isVpnActive = MutableStateFlow(false)
-    val isVpnActive: StateFlow<Boolean> = _isVpnActive.asStateFlow()
+    val isVpnActive = VPNReceptor.isVpnActive
 
     // VPN State
     var stateVPN by mutableStateOf(VPNState())
         private set
 
-    // DataStore
-    val dataStore = StoreVPN(context)
-
     private val _mostrarModalVPN = MutableStateFlow(false)
     val mostrarModalVPN: StateFlow<Boolean> = _mostrarModalVPN
 
-    init {
-        initVPN()
-    }
-
-    /**
-     * Initializes the WireGuard manager and starts monitoring VPN state changes.
-     * This method should be called when the ViewModel is created.
-     */
-    fun initVPN() {
-        wireguardManager = WireguardManager(context)
-
-        // Observe VPN state changes in a coroutine
-        viewModelScope.launch {
-            while (isActive) {
-                Log.d("VPN", "ESTATUS: ${_isVpnActive.value}");
-                // Restore last known VPN state from SharedPreferences if needed and assign in fallback
-                _vpnState.value = wireguardManager?.getStatus() ?: VPNStatus.NO_CONNECTION
-                _isVpnActive.value = wireguardManager?.isVpnActive ?: false
-                delay(1000) // Check every 500ms (half a second)
-            }
-        }
-    }
-
-    /**
-     * Starts the VPN connection with the given tunnel data.
-     */
-    fun startVPN(tunnelData: ServerInfo) {
-        viewModelScope.launch {
-            Log.i("VPN", "Connect - success!")
-            wireguardManager?.start(tunnelData)
-        }
-    }
-
-    /**
-     * Stops the active VPN connection.
-     */
-    fun stopVPN() {
-        viewModelScope.launch {
-            wireguardManager?.stop()
-        }
-    }
+    private val _mostrarModalConfiguracion = MutableStateFlow(false)
+    val mostrarModalConfiguracion: StateFlow<Boolean> = _mostrarModalConfiguracion
 
     // Helper para obtener el Intent de permiso de VPN (necesario en el paso 5)
     fun getVpnIntent(): Intent? {
@@ -107,19 +62,16 @@ class VPNViewModel @Inject constructor (
             bandPermiso = value
         )
     }
-
     fun setBandCreacionKeys(value: Boolean){
         stateVPN = stateVPN.copy(
             bandCreacionKeys = value
         )
     }
-
     fun setBandEnvioDatos(value: Boolean){
         stateVPN = stateVPN.copy(
             bandEnvioDatos = value
         )
     }
-
     fun setBandConfiguracion(value: Boolean?){
         value?.let {
             stateVPN = stateVPN.copy(
@@ -127,25 +79,21 @@ class VPNViewModel @Inject constructor (
             )
         }
     }
-
     fun setIdDispositivo( value: String ){
         stateVPN = stateVPN.copy(
             idDispositivo = value
         )
     }
-
     fun setPrivateKey( value: String ){
         stateVPN = stateVPN.copy(
             privateKey = value
         )
     }
-
     fun setPublicKey( value: String ){
         stateVPN = stateVPN.copy(
             publicKey = value
         )
     }
-
     fun setInterfaceAddress( value: String ){
         stateVPN = stateVPN.copy(
             interfaceAddress = value
@@ -182,14 +130,13 @@ class VPNViewModel @Inject constructor (
         )
     }
 
-
     fun inicializaProcesoVPN(){
         viewModelScope.launch(Dispatchers.IO) {
             delay(500) // Retrasamos un poco para recuperar el status de la VPN
-            Log.d("VPN", "Volver a configurar: ${ _isVpnActive.value }")
+            Log.d("VPN", "Volver a configurar: ${ isVpnActive.value }")
 
-            // Validamos si existe una conecion activa ya no configuramos las vpn
-            if( !_isVpnActive.value ){
+            // Validamos si existe una conexión activa ya no configuramos las vpn
+            if( !isVpnActive.value ){
                 // Valida si existe una configuración
                 if( !stateVPN.bandConfiguracion ){
 
@@ -225,22 +172,6 @@ class VPNViewModel @Inject constructor (
                         }
                     }
                 }
-                else{
-                    // CONECTAR VPN
-                    val miServidor = ServerInfo(
-                        interfaceAddress        = stateVPN.interfaceAddress,
-                        interfaceDns            = stateVPN.interfaceDns,
-                        interfacePrivateKey     = stateVPN.privateKey,
-                        peerPublicKey           = stateVPN.peerPublicKey,
-                        peerPresharedKey        = stateVPN.peerPresharedKey,
-                        peerAllowedIPs          = stateVPN.peerAllowedIPs,
-                        peerEndpoint            = stateVPN.peerEndpoint,
-                        peerPersistentKeepalive = stateVPN.peerPersistentKeepalive
-                    )
-
-                    // Conectamos VPN
-                    startVPN(miServidor)
-                }
             }
         }
     }
@@ -248,7 +179,7 @@ class VPNViewModel @Inject constructor (
     /**
      * Funcion para el Boton Conectar
      */
-    fun conectarVPN(){
+    fun conectarVPN( context: Context ){
         viewModelScope.launch(Dispatchers.IO) {
 
             val idDispositivo = stateVPN.idDispositivo
@@ -305,15 +236,15 @@ class VPNViewModel @Inject constructor (
                 peerPersistentKeepalive = stateVPN.peerPersistentKeepalive
             )
 
-            // Conectamos VPN
-            startVPN(miServidor)
-
-            // Mostramos el estatus de la configuracion
-            setBandConfiguracion(true)
+            // Conexion a la VPN por el Servicio
+            val intent = Intent(context, VPNService::class.java).apply {
+                action = "CONECTAR"
+                putExtra("CONFIGURACION_VPN", miServidor)
+            }
+            context.startService(intent)
 
             // Almacenamos estatus de configuracion en DataStore
             dataStore.saveBandConfiguracion(true)
-
         }
     }
 
@@ -329,5 +260,83 @@ class VPNViewModel @Inject constructor (
         setPrivateKey(keyPair.privateKey.toBase64())
         setPublicKey(keyPair.publicKey.toBase64())
         setBandCreacionKeys(true)
+    }
+
+    fun cerrarModalConfiguracion(){
+        _mostrarModalConfiguracion.value = false
+    }
+    fun _borrarConfiguracion(){
+        _mostrarModalConfiguracion.value = true
+    }
+    fun borrarConfiguracion(){
+        // Conexion a la VPN por el Servicio
+        val intent = Intent(context, VPNService::class.java).apply {
+            action = "DESCONECTAR"
+        }
+        context.startService(intent)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            // Borrar datos de DataStore
+            dataStore.savePrivateKey("")
+            dataStore.savePublicKey("")
+            dataStore.saveInterfaceAddress("")
+            dataStore.saveInterfaceDns("")
+            dataStore.savePeerPublicKey("")
+            dataStore.savePeerPresharedKey("")
+            dataStore.savePeerAllowedIPs("")
+            dataStore.savePeerEndpoint("")
+            dataStore.savePeerPersistentKeepalive("")
+            dataStore.saveBandCreacionKeys(false)
+            dataStore.saveBandEnvioDatos(false)
+            dataStore.saveBandConfiguracion(false)
+
+            // Cerramos Modal
+            cerrarModalConfiguracion()
+
+            // Generacion de Claves y Envio
+            delay(1000) // Esperamos un 1 seg solo para ver el cambio del progreso en pantalla
+            // Validamos si existe el ID del dispositivo
+            if( stateVPN.idDispositivo.isEmpty() ){
+                // Obtenemos ID del dispositivo
+                setIdDispositivo(Secure.getString(context.contentResolver, Secure.ANDROID_ID))
+                // Almacenar ID en DataStore
+                dataStore.saveIdDispositivo(stateVPN.idDispositivo)
+            }
+
+            // Validamos Claves del dispositivo
+            if( !stateVPN.bandCreacionKeys ){
+                generarClavesLlaves()
+                // Almacenar Claves en DataStore
+                dataStore.saveBandCreacionKeys(true)
+                dataStore.savePrivateKey(stateVPN.privateKey)
+                dataStore.savePublicKey(stateVPN.publicKey)
+                setBandEnvioDatos(false) // Aseguramos el envio de Claves al servidor
+            }
+
+            // Enviamos Llave publica del dispositivo (API)
+            if( !stateVPN.bandEnvioDatos ){
+                try {
+                    val response = repository.actualizaClavePublica(stateVPN.idDispositivo, stateVPN.publicKey)
+                    if(response?.success == true){
+                        // Almacenar estatus en DataStore
+                        dataStore.saveBandEnvioDatos(true)
+                        setBandEnvioDatos(true)
+                    }
+                }catch (e: Exception){
+                    Log.e("ViewModel", e.message.toString())
+                }
+            }
+
+        }
+    }
+
+    fun cerrarApp( context: Context ){
+        val intent = context.packageManager.getLaunchIntentForPackage("ita.tech.eveniment")
+        if( intent != null ){
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        }else{
+            Log.e("Abrir Eveniment", "No se encontro el paquete de la app")
+        }
     }
 }

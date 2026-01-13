@@ -15,9 +15,6 @@ class StoreVPN( private val context: Context) {
 
     companion object{
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("VPN")
-        // Estatus VPN
-        val VPN_STATUS = stringPreferencesKey("vpn_status")
-
         // Estatus
         val BAND_CREACION_KEYS           = booleanPreferencesKey("band_creacion_keys")
         val BAND_ENVIO_DATOS             = booleanPreferencesKey("band_envio_datos")
@@ -38,17 +35,6 @@ class StoreVPN( private val context: Context) {
         val PEER_ENDPOINT             = stringPreferencesKey("peer_endpoint")
         val PEER_PERSISTENT_KEEPALIVE = stringPreferencesKey("peer_persistent_keepalive")
 
-    }
-
-    val getVPNStatus: Flow<VPNStatus> = context.dataStore.data
-        .map { preferences ->
-            (preferences[VPN_STATUS] ?: VPNStatus.NO_CONNECTION) as VPNStatus
-        }
-
-    suspend fun saveVPNStatus( value: VPNStatus ){
-        context.dataStore.edit { preferences ->
-            preferences[VPN_STATUS] = value.toString()
-        }
     }
 
     val getBandCreacionKeys: Flow<Boolean> = context.dataStore.data

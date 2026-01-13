@@ -1,8 +1,6 @@
 package ita.tech.vpn.state
 
 data class VPNState(
-    val vpnStatus: VPNStatus = VPNStatus.NO_CONNECTION,
-
     val bandPermiso: Boolean = false,
     val bandCreacionKeys: Boolean = false,
     val bandEnvioDatos: Boolean = false,

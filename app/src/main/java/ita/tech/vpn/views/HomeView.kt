@@ -1,5 +1,6 @@
 package ita.tech.vpn.views
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,11 +18,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +42,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,7 +50,9 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import ita.tech.vpn.R
+import ita.tech.vpn.components.ModalAlerta
 import ita.tech.vpn.dataStore.StoreVPN
+import ita.tech.vpn.state.VPNStatus
 import ita.tech.vpn.viewModels.VPNViewModel
 
 @Composable
@@ -88,10 +95,14 @@ fun ContentHomeView(navController: NavController, viewModel: VPNViewModel) {
     // Observa el estado del Modal VPN
     val mostrarModalVPN by viewModel.mostrarModalVPN.collectAsState()
 
+    // Observa el estado del Modal Configuracion
+    val mostrarModalConfiguracion by viewModel.mostrarModalConfiguracion.collectAsState()
+
+
     LaunchedEffect(bandConfiguracion.value) {
         if(bandConfiguracion.value != null){
+            Log.d("VPN", "Recuperamos datos del DataStore")
             // Recuperamos datos del DataStore
-
             viewModel.setBandCreacionKeys(bandCreacionKeys.value)
             viewModel.setBandEnvioDatos(bandEnvioDatos.value)
             viewModel.setBandConfiguracion(bandConfiguracion.value)
@@ -109,29 +120,40 @@ fun ContentHomeView(navController: NavController, viewModel: VPNViewModel) {
             viewModel.setPeerPersistentKeepalive(peerPersistentKeepalive.value)
 
             // Inicializamos el proceso de configuración de la VPN
-            // viewModel.initVPN()
             viewModel.inicializaProcesoVPN()
         }
 
     }
+
+    // Modal de Error de configuraciíon
     if( mostrarModalVPN ){
-        AlertDialog(
-            onDismissRequest = { viewModel.cerrarModalVPN() },
-            title = { Text("Error de Configuración", fontWeight = FontWeight.Bold) },
-            text = { Text("No se puede iniciar la VPN. Asegúrate de que todos los parámetros de configuración necesarios estén definidos.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        // Notificar al ViewModel que la UI ha cerrado el diálogo
-                        viewModel.cerrarModalVPN()
-                    }
-                ) {
-                    Text("Aceptar")
-                }
-            }
+        ModalAlerta(
+            "Error de Configuración",
+            "No se puede iniciar la VPN. Asegúrate de que todos los parámetros de configuración necesarios estén definidos.",
+            { viewModel.cerrarModalVPN() },
+            { viewModel.cerrarModalVPN() },
+            icono = {Icon(
+                painter = painterResource(id = R.drawable.warning),
+                contentDescription = "Advertencia"
+            ) },
+            false
         )
     }
 
+    // Modal de Borrado de Configuración
+    if( mostrarModalConfiguracion ){
+        ModalAlerta(
+            "¡Alerta!",
+            "Si se elimina la configuración, por favor, contacta al equipo de Sistemas inmediatamente para reconectar la aplicación de Monitoreo.",
+            { viewModel.cerrarModalConfiguracion() },
+            { viewModel.borrarConfiguracion() },
+            icono = {Icon(
+                painter = painterResource(id = R.drawable.warning),
+                contentDescription = "Advertencia"
+            ) },
+            true
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -199,7 +221,7 @@ fun ContentHomeView(navController: NavController, viewModel: VPNViewModel) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        "ESTATUS: ${statusVPN.name}",
+                        "ESTATUS: ${statusVPN}",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -218,18 +240,23 @@ fun ContentHomeView(navController: NavController, viewModel: VPNViewModel) {
                         ElevatedButton(
                             enabled = !stateVPN.bandConfiguracion,
                             onClick = {
-                                viewModel.conectarVPN()
+                                viewModel.conectarVPN(context)
                             }
                         ) {
                             Text("Conectar")
                         }
                         ElevatedButton(
-                            onClick = {}
+                            enabled = stateVPN.bandConfiguracion,
+                            onClick = {
+                                viewModel._borrarConfiguracion()
+                            }
                         ) {
                             Text("Borrar configuración")
                         }
                         ElevatedButton(
-                            onClick = {}
+                            onClick = {
+                                viewModel.cerrarApp(context)
+                            }
                         ) {
                             Text("Cerrar")
                         }
@@ -282,9 +309,13 @@ fun Concepto( nombre:String, valor:Boolean = false ){
                     .height(20.dp)
             ) {
                 Switch(
+                    enabled = false,
                     checked = valor,
                     onCheckedChange = {},
-                    modifier = Modifier.scale(0.5f)
+                    modifier = Modifier.scale(0.5f),
+                    colors = SwitchDefaults.colors(
+                        disabledCheckedTrackColor = MaterialTheme.colorScheme.primary
+                    )
                 )
             }
         }
