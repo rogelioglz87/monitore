@@ -337,6 +337,11 @@ class VPNViewModel @Inject constructor (
             context.startActivity(intent)
         }else{
             Log.e("Abrir Eveniment", "No se encontro el paquete de la app")
+            val intent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
         }
     }
 }
