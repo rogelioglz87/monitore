@@ -230,6 +230,7 @@ fun ContentHomeView(navController: NavController, viewModel: VPNViewModel) {
                     Concepto("Generación de claves", stateVPN.bandCreacionKeys)
                     Concepto("Envío de datos", stateVPN.bandEnvioDatos)
                     Concepto("Configuración", stateVPN.bandConfiguracion)
+                    ConceptoTexto("Identificador", stateVPN.idDispositivo)
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         modifier = Modifier
@@ -318,6 +319,40 @@ fun Concepto( nombre:String, valor:Boolean = false ){
                     )
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun ConceptoTexto( nombre:String, valor: String = "" ){
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(end = 5.dp)
+                .weight(0.5f),
+            horizontalAlignment = Alignment.End
+        ) {
+            Text(
+                nombre,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Column(
+            modifier = Modifier
+                .padding(20.dp, 2.dp, 2.dp, 2.dp)
+                .weight(0.5f),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = valor.uppercase().chunked(4).joinToString("-"),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

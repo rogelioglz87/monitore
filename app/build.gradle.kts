@@ -31,7 +31,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -69,7 +70,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    val tunnel_version = "1.0.20250531"
+    val tunnel_version = "1.0.20260102"
     implementation("com.wireguard.android:tunnel:$tunnel_version")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 

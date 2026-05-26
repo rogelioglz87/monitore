@@ -39,11 +39,19 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
 
+            // Validamos si la App fue abrierta por el sistema (Se usa para Android 12)
+            // Para las otras versiones se puede dejar el codigo
+            val inicioAutomatico = intent.getBooleanExtra("INICIO_DESDE_REINICIO", false)
+
             // Iniciamos el Servicio
             val intent = Intent(this, VPNService::class.java).apply {
                 action = ""
             }
             this.startForegroundService(intent)
+
+            if( inicioAutomatico ){
+                minimizarApp()
+            }
 
             // Handling VPN Permission Request
             val vpnPermissionLauncher = rememberLauncherForActivityResult(
@@ -75,4 +83,19 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun minimizarApp(){
+        println("***MainActivity: Iniciando servicio en primer plano de forma segura")
+        val minimizadoExitoso = moveTaskToBack(true)
+
+        if (!minimizadoExitoso) {
+            // En caso de falla simulamos presionar el botón "Home"
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(homeIntent)
+        }
+    }
+
 }
